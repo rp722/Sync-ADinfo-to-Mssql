@@ -1,0 +1,5 @@
+USE [master]
+GO
+EXEC master.dbo.sp_addlinkedserver @server = N'ADSIC', @srvproduct=N'Active Directory Services 2.5', @provider=N'ADsDSOObject', @datasrc=N'adsdatasource', @provstr=N'ADSDSOObject'
+EXEC master.dbo.sp_addlinkedsrvlogin @rmtsrvname=N'ADSIC',@useself=N'False',@locallogin=NULL,@rmtuser=N'Domain\administrator',@rmtpassword='password'
+GO
