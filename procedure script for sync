@@ -1,0 +1,62 @@
+-- =============================================
+-- Author:		cwang
+-- Create date: <Create Date,,>
+-- Description:	sync ad info to ms sql
+-- =============================================
+
+CREATE PROCEDURE [dbo].[SyncADinfo] 
+	
+AS
+
+declare @temp_uid int 
+declare @temp_SAM nvarchar(20)
+declare @temp_DN nvarchar(50)
+declare @temp_mail nvarchar(50)
+declare @temp_OfficeSite nvarchar(10)
+
+BEGIN
+
+	SET NOCOUNT ON;
+	CREATE TABLE #tempTable  	--创建临时表
+	( 
+	tempID int identity(1,1),
+	uid int,
+	SAM nvarchar(20),
+	DN nvarchar(50),
+	mail nvarchar(50),
+	OSite nvarchar(10),
+	)
+  
+	insert into #tempTable(uid,SAM,DN,mail,OSite)
+	  SELECT *
+  FROM OPENQUERY
+  (ADSI
+   , 'SELECT physicalDeliveryOfficeName,mail,displayName,sAMAccountName,uSNCreated
+         FROM ''LDAP://EFDGROUP.NET/OU=users,OU=Common,OU=ECH,OU=EFD,DC=efdgroup,DC=NET''
+      WHERE objectClass = ''Person''')
+
+	DECLARE @TOTAL_COUNT INT,--临时表记录条数
+			@NOW_COUNT INT--现在遍历到哪条记录
+
+	SELECT @TOTAL_COUNT=COUNT(*) FROM #tempTable
+	SET @NOW_COUNT=1;
+	WHILE(@NOW_COUNT<=@TOTAL_COUNT)
+	 BEGIN
+	   SELECT @temp_uid=uid,@temp_SAM=SAM,@temp_DN=DN,@temp_mail=mail,@temp_OfficeSite=OSite FROM #tempTable 
+	   WHERE tempID=@NOW_COUNT --关键就在这
+		if exists(select * from t_adinfo where UID=@temp_uid)
+			begin
+			 update t_adinfo set sAMAccountName=@temp_SAM,displayName=@temp_DN,mail=@temp_mail,OfficeSite=@temp_OfficeSite where uid=@temp_uid
+			end
+		else
+			 begin
+			 insert into t_adinfo(UID,sAMAccountName,displayName,mail,OfficeSite) values(@temp_uid,@temp_SAM,@temp_DN,@temp_mail,@temp_OfficeSite)
+			 end
+	   SET @NOW_COUNT=@NOW_COUNT+1
+	 END
+	DROP TABLE #tempTable	--删除临时表
+
+END
+GO
+
+
